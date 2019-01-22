@@ -54,8 +54,17 @@ module Amoeba
 
     def apply_clones
       amoeba.clones.each do |clone_field|
+        ensure_clone_in_includes(clone_field)
         exclude_clone_if_has_many_through(clone_field)
       end
+    end
+
+    # If the field to be cloned isn't in the includes, add it so it will
+    # be processed in the apply_associations step.
+    # This handles the case where no includes or excludes are set at all.
+    def ensure_clone_in_includes(clone_field)
+      return if amoeba.excludes.present?
+      amoeba.includes[clone_field] = {} unless amoeba.includes.values.include?(clone_field)
     end
 
     def exclude_clone_if_has_many_through(clone_field)
@@ -65,8 +74,9 @@ module Amoeba
       # copy the child records, exclude the regular join
       # table from copying so we don't end up with the new
       # and old children on the copy
-      return unless association.macro == :has_many ||
+      return unless association.macro == :has_many &&
                     association.is_a?(::ActiveRecord::Reflection::ThroughReflection)
+
       amoeba.exclude_association(association.options[:through])
     end
 
